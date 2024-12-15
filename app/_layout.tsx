@@ -1,39 +1,85 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import React, { useEffect, useState } from "react";
+import { View, Text, Button, StyleSheet } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState(false);
+  const [admin, setAdmin] = useState(false);
+  const router = useRouter();
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
+  // Fetch user and admin state from AsyncStorage
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
+    const fetchAuthState = async () => {
+      try {
+        const userToken = await AsyncStorage.getItem("userToken");
+        const adminToken = await AsyncStorage.getItem("adminToken");
 
-  if (!loaded) {
-    return null;
-  }
+        setUser(!!userToken); // Set to true if a user token exists
+        setAdmin(!!adminToken); // Set to true if an admin token exists
+      } catch (error) {
+        console.error("Error retrieving auth state:", error);
+      }
+    };
+
+    fetchAuthState();
+  }, []);
+
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Preference Sharing App</Text>
+        <View style={styles.nav}>
+          {user ? (
+            <>
+              <Button title="Overview" onPress={() => router.push("/overview")} />
+              <Button title="Update Preferences" onPress={() => router.push("/preferences")} />
+            </>
+          ) : (
+            <>
+              <Button title="Login" onPress={() => router.push("/login")} />
+              <Button title="Signup" onPress={() => router.push("/signup")} />
+            </>
+          )}
+          {admin ? (
+            <>
+              <Button title="Admin Dashboard" onPress={() => router.push("/admin/dashboard")} />
+            </>
+          ) : (
+            <Button title="Admin Login" onPress={() => router.push("/admin/login")} />
+          )}
+        </View>
+      </View>
+      <View style={styles.content}>
+        <Stack />
+        {children}
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    padding: 20,
+    backgroundColor: "#007BFF",
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 24,
+    color: "#fff",
+  },
+  nav: {
+    flexDirection: "row",
+    marginTop: 10,
+    justifyContent: "space-around",
+    width: "100%",
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+});
